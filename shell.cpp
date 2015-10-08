@@ -10,7 +10,6 @@
 
 using namespace std;
 
-
 typedef struct {
     char* cmds[1024];
     int cmdCount;
@@ -101,8 +100,69 @@ char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 }
 
 
+int execEngine2( pipedCommand pc){
+	int n = pc.cmdCount;
+	int saved_stdout = dup(1), saved_stdin = dup(0);
+	int fd[n][2];
+	
+	for(int i=0; i<n; i++){
+		
+		if( pipe(fd[i]) != 0){
+			perror("pipe");
+			return 1;
+		}
+		
+		pid_t pid = fork();
+		
+		if( pid < 0 ){
+			perror("fork");
+			return 2;
+		}
+		if( pid > 0){
+			/* Parent process */
+			wait(0);
+			if(i==0){
+				dup2( saved_stdout, 1);
+				dup2( saved_stdin, 0);
+			}
+			break;
+		}
+		else{
+			 /* Child process */
+			
+			if( n>1 && i>0 && i<n ) {
+				// duplicate STDIN  
+				close(fd[i-1][1]);
+				close(0);
+				dup2( fd[i-1][0], 0 );
+			}
+			if( n>1 && i<n-1 ){
+				// duplicate STDOUT
+				close(fd[i][0]);
+				close(1);
+				dup2( fd[i][1], 1 );
+			}
+			else if(i==n-1){
+				// restore STDOUT
+				dup2( saved_stdout, 1);
+			}
+			
+			char** sCmd = parseCommandWithArgs(pc, i);
+			if( execvp(sCmd[0], sCmd ) == -1){
+				perror("execvp");
+				return 3;
+			}
+		}
+	}
+	return 0;
+}
 
+
+int saved_stdout;
 int execEngine( pipedCommand pc , int commandIndex, int previousPipe[] ){
+
+	if( commandIndex == pc.cmdCount )
+		return 0;
 
 	int currentPipe[2];
 
@@ -122,26 +182,35 @@ int execEngine( pipedCommand pc , int commandIndex, int previousPipe[] ){
 		printf("Child: %d: %s %d %d\n", commandIndex, pc.cmds[commandIndex], currentPipe[0], currentPipe[1] );
 
 		if( pc.cmdCount > 1 && commandIndex < pc.cmdCount-1){
-			/* Manage the stdout for multi-pipe */
+			/* duplicate the stdout for multi-pipe */
 			close(1);
 			close(currentPipe[0]);
 			dup2(currentPipe[1], 1);
 		}
+		if( commandIndex == pc.cmdCount-1){
+			close(1);
+			close(currentPipe[1]);
+			dup2(saved_stdout, 1);
+			printf("aaa\n");
+		}
 		if( pc.cmdCount > 1 && commandIndex > 0 && commandIndex < pc.cmdCount ){
-			/* Manage the stdin for multi-pipe */
+			/* duplicate the stdin for multi-pipe */
 			close(0);
 			close(previousPipe[1]);
 			dup2(previousPipe[0], 0);
 		}
+		
 		char** sCmd = parseCommandWithArgs(pc, commandIndex);
-		printf("Child 2: %d: %s %s\n", commandIndex, sCmd[0], sCmd[1] );
+		printf("Child II: %d: %s %s\n", commandIndex, sCmd[0], sCmd[1] );
 	    int stat = execvp(sCmd[0], sCmd );
 	}
 	else{
 		printf("Parent: %d: %s %d %d\n", commandIndex, pc.cmds[commandIndex], currentPipe[0], currentPipe[1] );
 		if(commandIndex < pc.cmdCount-1)
 			execEngine(pc, commandIndex + 1 , currentPipe);
-		wait(0);
+		if(commandIndex==0)
+			wait(0);
+		printf("Parent %d+\n", commandIndex );
 	}
 	return 0;
 }
@@ -204,6 +273,7 @@ int main(){
     sdb.historySize = 5;
     char* name = getlogin();
     
+    saved_stdout = dup(1);
 
     while(1){
     	
@@ -225,8 +295,11 @@ int main(){
        		}
        	}*/
 
-        if( ! isBuiltinCmd( pc ) )
-        	execEngine(pc, 0, NULL);
+        if( ! isBuiltinCmd( pc ) ){
+        	printf("STDOUT %d\n", saved_stdout);
+        	//execEngine(pc, 0, NULL);
+        	execEngine2(pc);
+        }
     }
 
     return 0;
