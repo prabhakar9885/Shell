@@ -1,12 +1,14 @@
 #include <stdio.h>
-#include "list"
+#include <list>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include "string.h"
-#include "unistd.h"
+#include <string.h>
+#include <unistd.h>
 #include <stdlib.h>
 
 #define MAX_COMMAND_SIZE 1024
+
+using namespace std;
 
 
 typedef struct {
@@ -17,7 +19,7 @@ typedef struct {
 
 
 typedef struct {
-	std::list<char*> historyList;
+	list<char*> historyList;
 	int historySize;
 }shellDB;
 
@@ -27,12 +29,12 @@ shellDB sdb;
 /*
  * Returns the number of times the character "Key" is appearning in the string.
  */
-int getCharCount( char *string, char key){
+int getCharCount( char *str, char key){
     int count = 0;
-    while(*string){
-        if(*string==key)
+    while(*str){
+        if(*str==key)
             count++;
-        string++;
+        str++;
     }
     return count;
 }
@@ -99,27 +101,48 @@ char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 
 
 
-void execEngine( pipedCommand pc ){
-	
-	for (int i = 0; i < pc.cmdCount; ++i) {
+int execEngine( pipedCommand pc , int commandIndex, int previousPipe[] ){
 
-		pid_t pid=fork();
-		
-		if( pid<0)
-			perror("fork");
-		else if(pid==0){
-			/*	Child Process	*/
-	        char** sCmd = parseCommandWithArgs(pc, 0);
-	        int stat = execvp(sCmd[0], sCmd );
-	        printf("stat: %d\n", stat);
-	    }
-	    else{
-	    	/*	Parent Process	*/
-	    	char** sCmd = parseCommandWithArgs(pc, i);
-	    	//waitpid( pid, &(pc.exitStatus), -1 );
-	    	wait(0);
-	    }
+	int currentPipe[2];
+
+	if( pipe(currentPipe) != 0 ){
+		perror("pipe error");
+		return 1;
 	}
+
+	pid_t pid = fork();
+
+	if( pid < 0){
+		perror("fork error");
+		exit(1);
+	}
+
+	if( pid == 0 ){
+		printf("Child: %d: %s %d %d\n", commandIndex, pc.cmds[commandIndex], currentPipe[0], currentPipe[1] );
+
+		if( pc.cmdCount > 1 && commandIndex < pc.cmdCount-1){
+			/* Manage the stdout for multi-pipe */
+			close(1);
+			close(currentPipe[0]);
+			dup2(currentPipe[1], 1);
+		}
+		if( pc.cmdCount > 1 && commandIndex > 0 && commandIndex < pc.cmdCount ){
+			/* Manage the stdin for multi-pipe */
+			close(0);
+			close(previousPipe[1]);
+			dup2(previousPipe[0], 0);
+		}
+		char** sCmd = parseCommandWithArgs(pc, commandIndex);
+		printf("Child 2: %d: %s %s\n", commandIndex, sCmd[0], sCmd[1] );
+	    int stat = execvp(sCmd[0], sCmd );
+	}
+	else{
+		printf("Parent: %d: %s %d %d\n", commandIndex, pc.cmds[commandIndex], currentPipe[0], currentPipe[1] );
+		if(commandIndex < pc.cmdCount-1)
+			execEngine(pc, commandIndex + 1 , currentPipe);
+		wait(0);
+	}
+	return 0;
 }
 
 
@@ -145,7 +168,7 @@ char *strtrim( char* text){
  */
 
 int isBuiltinCmd( pipedCommand pCmd){
-
+return 0;
 	char** sCmd = parseCommandWithArgs(pCmd, 0);
 	char *temp = strtrim(sCmd[0]);
 
@@ -153,6 +176,9 @@ int isBuiltinCmd( pipedCommand pCmd){
 		printf("cd..\n");
 		chdir( sCmd[1] );
 		return 1;
+	}
+	else if( strcmp(temp, "exit") == 0 ){
+
 	}
 	else if( strcmp(temp, "exit") == 0 ){
 		exit(0);
@@ -193,7 +219,7 @@ int main(){
        	pipedCommand pc = parsePipedCommand( buff );
 
         if( ! isBuiltinCmd( pc ) )
-        	execEngine(pc);
+        	execEngine(pc, 0, NULL);
     }
 
     return 0;
