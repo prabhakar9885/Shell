@@ -100,6 +100,39 @@ char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 }
 
 
+int execEngine3(pipedCommand pc){
+
+  	int   p[2];
+  	pid_t pid;
+  	int   fd_in = 0;
+
+  	for(int i=0; i<pc.cmdCount; i++)
+  	{
+  		pipe(p);
+      	if ((pid = fork()) == -1)
+      	{
+        	exit(EXIT_FAILURE);
+      	}
+      	else if (pid == 0)
+      	{
+        	dup2(fd_in, 0); //change the input according to the old one 
+          	if( i< pc.cmdCount-1)
+          		dup2(p[1], 1);
+          	close(p[0]);
+          	char** sCmd = parseCommandWithArgs(pc, i);
+			execvp(sCmd[0], sCmd );
+          	exit(EXIT_FAILURE);
+        }
+      	else
+        {
+        	wait(NULL);
+          	close(p[1]);
+          	fd_in = p[0]; //save the input for the next command
+        }
+    }
+}
+
+
 int execEngine2( pipedCommand pc){
 	int n = pc.cmdCount;
 	int saved_stdout = dup(1), saved_stdin = dup(0);
@@ -238,17 +271,13 @@ char *strtrim( char* text){
  */
 
 int isBuiltinCmd( pipedCommand pCmd){
-return 0;
+
 	char** sCmd = parseCommandWithArgs(pCmd, 0);
 	char *temp = strtrim(sCmd[0]);
 
 	if( strcmp(temp, "cd") == 0 ){
-		printf("cd..\n");
 		chdir( sCmd[1] );
 		return 1;
-	}
-	else if( strcmp(temp, "exit") == 0 ){
-
 	}
 	else if( strcmp(temp, "exit") == 0 ){
 		exit(0);
@@ -284,21 +313,9 @@ int main(){
         read( 0, buff, MAX_COMMAND_SIZE );
 
        	pipedCommand pc = parsePipedCommand( buff );
-/*
-       	for(int i=0; i< pc.cmdCount; i++){
-       		printf("----------\n");
-       		printf("%s\n", pc.cmds[i]);
-       		char** sCmd = parseCommandWithArgs(pc, i);
-       		int j=0;
-       		while(sCmd[j]!=NULL){
-       			printf("+%s+\n", sCmd[j++]);
-       		}
-       	}*/
 
         if( ! isBuiltinCmd( pc ) ){
-        	printf("STDOUT %d\n", saved_stdout);
-        	//execEngine(pc, 0, NULL);
-        	execEngine2(pc);
+        	execEngine3(pc);
         }
     }
 
