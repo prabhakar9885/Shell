@@ -1,28 +1,42 @@
 #include <stdio.h>
-#include <list>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 
+
 #define MAX_COMMAND_SIZE 1024
 
-using namespace std;
+
 
 typedef struct {
     char* cmds[1024];
     int cmdCount;
     int exitStatus;
-}pipedCommand;
+} pipedCommand;
 
 
-typedef struct {
-	list<char*> historyList;
-	int historySize;
-}shellDB;
 
-shellDB sdb;
+
+void my_handler(int si){
+	printf("Ctrl C is pressed\n");
+}
+
+void configSignaalHandler(){
+	struct sigaction sigIntHandler;
+
+   	sigIntHandler.sa_handler = my_handler;
+   	sigemptyset(&sigIntHandler.sa_mask);
+   	sigIntHandler.sa_flags = 0;
+
+   	sigaction(SIGINT, &sigIntHandler, NULL);
+
+   	pause();
+}
+
+
 
 
 /*
@@ -52,26 +66,26 @@ pipedCommand parsePipedCommand( char *pipedCmd) {
     int lenOfCmdBeforePipe = 0, indexOfCmdBeforePipe = 0, cmdCount = 0;
 
     for (int i = 0; i < len; ++i) {
-    	lenOfCmdBeforePipe = 0;
-    	for ( indexOfCmdBeforePipe = i; 
-				indexOfCmdBeforePipe<len && pipedCmd[indexOfCmdBeforePipe] != '|' ;
-				 ++indexOfCmdBeforePipe) 
-			lenOfCmdBeforePipe++;
+        lenOfCmdBeforePipe = 0;
+        for ( indexOfCmdBeforePipe = i; 
+                indexOfCmdBeforePipe<len && pipedCmd[indexOfCmdBeforePipe] != '|' ;
+                 ++indexOfCmdBeforePipe) 
+            lenOfCmdBeforePipe++;
 
-		cmd.cmds[cmdCount] = (char*) malloc( sizeof(char) * (lenOfCmdBeforePipe+1) );
-		bzero(cmd.cmds[cmdCount], sizeof(char) * (lenOfCmdBeforePipe+1) );
-		for (int j = i; j < i+lenOfCmdBeforePipe; ++j)
-			cmd.cmds[cmdCount][j-i] = pipedCmd[j];
+        cmd.cmds[cmdCount] = (char*) malloc( sizeof(char) * (lenOfCmdBeforePipe+1) );
+        bzero(cmd.cmds[cmdCount], sizeof(char) * (lenOfCmdBeforePipe+1) );
+        for (int j = i; j < i+lenOfCmdBeforePipe; ++j)
+            cmd.cmds[cmdCount][j-i] = pipedCmd[j];
 
-		cmd.cmds[lenOfCmdBeforePipe] = 0;
-		//printf("+%s\n", cmd.cmds[cmdCount]);
+        cmd.cmds[lenOfCmdBeforePipe] = 0;
+        //printf("+%s\n", cmd.cmds[cmdCount]);
 
-		i += lenOfCmdBeforePipe;
-		cmdCount++;
-	}
+        i += lenOfCmdBeforePipe;
+        cmdCount++;
+    }
 
-	cmd.cmdCount = cmdCount;
-	return cmd;
+    cmd.cmdCount = cmdCount;
+    return cmd;
 }
 
 
@@ -82,22 +96,24 @@ pipedCommand parsePipedCommand( char *pipedCmd) {
  */
 char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 
-	char **singleCmd = (char**)malloc(sizeof(char*)*32);
-	char *rest = cmd.cmds[ commandIndex ], *token;
-	int i = 0;
+    char **singleCmd = (char**)malloc(sizeof(char*)*32);
+    char *rest = cmd.cmds[ commandIndex ], *token;
+    int i = 0;
 
-	while( token = strtok_r(rest, " ", &rest) ){
-		/* Breaks the command into tokens. e.g., "ls -l"  -> ls, -l 	*/
-		singleCmd[i] = (char*)malloc( sizeof(char) * 10 );
-		if( token[ strlen(token) -1 ] == '\n' )
-			token[ strlen(token) -1 ] = 0;
-		strcpy(singleCmd[i++], token);
-		//printf("++%s, %d\n", singleCmd[i-1], strlen( singleCmd[i-1] ) );
-	}
-	singleCmd[i++]= NULL;
+    while( token = strtok_r(rest, " ", &rest) ){
+        /* Breaks the command into tokens. e.g., "ls -l"  -> ls, -l     */
+        singleCmd[i] = (char*)malloc( sizeof(char) * 10 );
+        if( token[ strlen(token) -1 ] == '\n' )
+            token[ strlen(token) -1 ] = 0;
+        strcpy(singleCmd[i++], token);
+        //printf("++%s, %d\n", singleCmd[i-1], strlen( singleCmd[i-1] ) );
+    }
+    singleCmd[i++]= NULL;
 
-	return singleCmd;
+    return singleCmd;
 }
+
+
 
 
 int execEngine3(pipedCommand pc){
@@ -115,6 +131,7 @@ int execEngine3(pipedCommand pc){
       	}
       	else if (pid == 0)
       	{
+    		//configSignaalHandler();
         	dup2(fd_in, 0); //change the input according to the old one 
           	if( i< pc.cmdCount-1)
           		dup2(p[1], 1);
@@ -283,23 +300,17 @@ int isBuiltinCmd( pipedCommand pCmd){
 		exit(0);
 	}
 	else if( strcmp(temp, "history") == 0 ){
-		int count = sdb.historyList.size();
-		for(int i=0;i<count; i++){
-			char* temp = sdb.historyList.back();
-			sdb.historyList.pop_back();
-			printf("%s", temp);
-			sdb.historyList.push_front(temp);
-		}
+		
 	}
 	else
 		return 0;
 }
 
 
+
 int main(){
     
     char buff[MAX_COMMAND_SIZE];
-    sdb.historySize = 5;
     char* name = getlogin();
     
     saved_stdout = dup(1);
@@ -321,4 +332,3 @@ int main(){
 
     return 0;
 }
-
