@@ -95,6 +95,7 @@ char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 		strcpy(singleCmd[i++], token);
 		//printf("++%s, %d\n", singleCmd[i-1], strlen( singleCmd[i-1] ) );
 	}
+	singleCmd[i++]= NULL;
 
 	return singleCmd;
 }
@@ -201,22 +202,28 @@ int main(){
     
     char buff[MAX_COMMAND_SIZE];
     sdb.historySize = 5;
+    char* name = getlogin();
     
 
     while(1){
     	
         bzero(buff, MAX_COMMAND_SIZE);
-    	printf("%s: %s$ ", getlogin(), getcwd(buff, MAX_COMMAND_SIZE));
+    	printf("%s: %s$ ", name, getcwd(buff, MAX_COMMAND_SIZE));
     	bzero(buff, MAX_COMMAND_SIZE);
     	fflush(stdout);
         read( 0, buff, MAX_COMMAND_SIZE );
 
-        if(sdb.historyList.size() == sdb.historySize )
-        	sdb.historyList.pop_back();
-        sdb.historyList.push_front( buff );
-
-
        	pipedCommand pc = parsePipedCommand( buff );
+/*
+       	for(int i=0; i< pc.cmdCount; i++){
+       		printf("----------\n");
+       		printf("%s\n", pc.cmds[i]);
+       		char** sCmd = parseCommandWithArgs(pc, i);
+       		int j=0;
+       		while(sCmd[j]!=NULL){
+       			printf("+%s+\n", sCmd[j++]);
+       		}
+       	}*/
 
         if( ! isBuiltinCmd( pc ) )
         	execEngine(pc, 0, NULL);
