@@ -78,7 +78,7 @@ pipedCommand parsePipedCommand( char *pipedCmd) {
             cmd.cmds[cmdCount][j-i] = pipedCmd[j];
 
         cmd.cmds[lenOfCmdBeforePipe] = 0;
-        //printf("+%s\n", cmd.cmds[cmdCount]);
+        printf("+%s\n", cmd.cmds[cmdCount]);
 
         i += lenOfCmdBeforePipe;
         cmdCount++;
@@ -97,7 +97,10 @@ pipedCommand parsePipedCommand( char *pipedCmd) {
 char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 
     char **singleCmd = (char**)malloc(sizeof(char*)*32);
-    char *rest = cmd.cmds[ commandIndex ], *token;
+    char *rest = (char*)malloc( strlen( cmd.cmds[commandIndex] ) * sizeof(char) ); 
+    strcpy( rest, cmd.cmds[commandIndex] );
+    
+    char *token;
     int i = 0;
 
     while( token = strtok_r(rest, " ", &rest) ){
@@ -132,11 +135,15 @@ int execEngine3(pipedCommand pc){
       	else if (pid == 0)
       	{
     		//configSignaalHandler();
-        	dup2(fd_in, 0); //change the input according to the old one 
-          	if( i< pc.cmdCount-1)
+    		if( pc.cmdCount > 1 ){
+        		dup2(fd_in, 0); //change the input according to the old one 
+        	}
+          	if( i< pc.cmdCount-1 )
           		dup2(p[1], 1);
           	close(p[0]);
-          	char** sCmd = parseCommandWithArgs(pc, i);
+          	//printf("%s\n", pc.cmds[0]);
+          	char **sCmd = parseCommandWithArgs(pc, i);
+          	//printf("%s %s\n", sCmd[0], sCmd[1] );
 			execvp(sCmd[0], sCmd );
           	exit(EXIT_FAILURE);
         }
@@ -171,30 +178,27 @@ int execEngine2( pipedCommand pc){
 		if( pid > 0){
 			/* Parent process */
 			wait(0);
-			if(i==0){
-				dup2( saved_stdout, 1);
-				dup2( saved_stdin, 0);
-			}
-			break;
+			printf("#%d", i);
+			close(fd[i-1][0]);
 		}
 		else{
 			 /* Child process */
 			
 			if( n>1 && i>0 && i<n ) {
 				// duplicate STDIN  
-				close(fd[i-1][1]);
+				//close(fd[i-1][1]);
 				close(0);
 				dup2( fd[i-1][0], 0 );
 			}
 			if( n>1 && i<n-1 ){
 				// duplicate STDOUT
-				close(fd[i][0]);
+				//close(fd[i][0]);
 				close(1);
 				dup2( fd[i][1], 1 );
 			}
 			else if(i==n-1){
 				// restore STDOUT
-				dup2( saved_stdout, 1);
+				//dup2( saved_stdout, 1);
 			}
 			
 			char** sCmd = parseCommandWithArgs(pc, i);
@@ -299,8 +303,10 @@ int isBuiltinCmd( pipedCommand pCmd){
 	else if( strcmp(temp, "exit") == 0 ){
 		exit(0);
 	}
-	else if( strcmp(temp, "history") == 0 ){
+	else if( strcmp(temp, "echo") == 0 ){
 		
+	}
+	else if( strcmp(temp, "history") == 0 ){		
 	}
 	else
 		return 0;
@@ -327,6 +333,8 @@ int main(){
 
         if( ! isBuiltinCmd( pc ) ){
         	execEngine3(pc);
+        	//execEngine2(pc);
+        	//execEngine( pc , 0, NULL );
         }
     }
 
