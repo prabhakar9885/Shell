@@ -12,6 +12,22 @@ using namespace std;
 int histLength=5;
 list<string> histBuff;
 
+
+char *strtrim( const char* text){
+
+	char *text2 = (char*) malloc( strlen(text) );
+	strcpy( text2, text);
+
+	while(*text2 ==' ') text2++;
+	int len= strlen(text2);
+	while(text2[len-1]==' '){
+		text2[len-1]==0;
+		len--;
+	}
+	return text2;
+}
+
+
 void addToHist(char *cmd){
 
 	// Replace the \n with \0
@@ -21,6 +37,10 @@ void addToHist(char *cmd){
 	while( temp[i] != '\n' )
 		i++;
 	temp[i] = '\0';
+
+	if( strcmp(strtrim(temp), (char*)"history")==0 && 
+			strcmp(strtrim(temp), strtrim(histBuff.back().c_str()) ) == 0)
+		return;
 
 	string str(temp);
 

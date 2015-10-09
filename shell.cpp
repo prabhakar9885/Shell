@@ -274,20 +274,6 @@ int execEngine( pipedCommand pc , int commandIndex, int previousPipe[] ){
 
 
 
-char *strtrim( char* text){
-
-	char *text2 = (char*) malloc( strlen(text) );
-	strcpy( text2, text);
-
-	while(*text2 ==' ') text2++;
-	int len= strlen(text2);
-	while(text2[len-1]==' '){
-		text2[len-1]==0;
-		len--;
-	}
-	return text2;
-}
-
 
 /*
  *  If the keyed-in command is shell's built-in, it will be executed.
