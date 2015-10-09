@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#include "history.h"
 
 #define MAX_COMMAND_SIZE 1024
 
@@ -78,7 +79,7 @@ pipedCommand parsePipedCommand( char *pipedCmd) {
             cmd.cmds[cmdCount][j-i] = pipedCmd[j];
 
         cmd.cmds[lenOfCmdBeforePipe] = 0;
-        printf("+%s\n", cmd.cmds[cmdCount]);
+        //printf("+%s\n", cmd.cmds[cmdCount]);
 
         i += lenOfCmdBeforePipe;
         cmdCount++;
@@ -118,7 +119,9 @@ char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 
 
 
-
+/*
+ *	Runs the external commands.
+ */
 int execEngine3(pipedCommand pc){
 
   	int   p[2];
@@ -301,12 +304,14 @@ int isBuiltinCmd( pipedCommand pCmd){
 		return 1;
 	}
 	else if( strcmp(temp, "exit") == 0 ){
+		persistHistoryToDisk();
 		exit(0);
 	}
 	else if( strcmp(temp, "echo") == 0 ){
 		
 	}
-	else if( strcmp(temp, "history") == 0 ){		
+	else if( strcmp(temp, "history") == 0 ){
+		displayHist();
 	}
 	else
 		return 0;
@@ -321,6 +326,8 @@ int main(){
     
     saved_stdout = dup(1);
 
+    loadHistoryFromDisk();
+
     while(1){
     	
         bzero(buff, MAX_COMMAND_SIZE);
@@ -328,6 +335,9 @@ int main(){
     	bzero(buff, MAX_COMMAND_SIZE);
     	fflush(stdout);
         read( 0, buff, MAX_COMMAND_SIZE );
+
+        // printf("11\n");
+        addToHist(buff);
 
        	pipedCommand pc = parsePipedCommand( buff );
 
