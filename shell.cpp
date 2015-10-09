@@ -337,8 +337,14 @@ int main(){
         read( 0, buff, MAX_COMMAND_SIZE );
 
         // printf("11\n");
-        if(buff[0]!=' ')
+        if(  strlen(strtrim(buff))>0 &&  buff[0] != ' ' && buff[0] != '!' )
         	addToHist(buff);
+        
+        if( (strtrim(buff))[0] == '!' ){
+        	strcpy(buff, getBangCommandFromHist( strtrim(buff) ) );
+        	printf("%s\n", buff);
+        	addToHist(buff);
+        }
 
        	pipedCommand pc = parsePipedCommand( buff );
 
