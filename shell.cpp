@@ -10,6 +10,9 @@
 
 #define MAX_COMMAND_SIZE 1024
 
+#ifndef HIST_FILE_NAME
+#define HIST_FILE_NAME ".MyHist"
+#endif
 
 
 typedef struct {
@@ -283,7 +286,9 @@ int execEngine( pipedCommand pc , int commandIndex, int previousPipe[] ){
  *  else, 0 will be returned
  */
 
-int isBuiltinCmd( pipedCommand pCmd){
+int isBuiltinCmd( pipedCommand *pCmd_ptr){
+
+	pipedCommand pCmd = *pCmd_ptr;
 
 	char** sCmd = parseCommandWithArgs(pCmd, 0);
 	char *temp = strtrim(sCmd[0]);
@@ -296,11 +301,16 @@ int isBuiltinCmd( pipedCommand pCmd){
 		persistHistoryToDisk();
 		exit(0);
 	}
-	else if( strcmp(temp, "echo") == 0 ){
+	else if( strncmp(temp, "echo", 4) == 0 ){
 		
 	}
-	else if( strcmp(temp, "history") == 0 ){
-		
+	else if( strncmp(temp, "history", 7) == 0 ){
+		pCmd_ptr->cmds[0] = (char*)malloc(sizeof(char)*128);
+		bzero( pCmd_ptr->cmds[0], sizeof(char)*128 );
+		strcpy( pCmd_ptr->cmds[0], (char*)"cat -n ");
+		strcat( pCmd_ptr->cmds[0], (char*)".MyHist" );
+		return 0;
+		// displayHist();
 	}
 	else
 		return 0;
@@ -337,8 +347,11 @@ int main(){
 
        	pipedCommand pc = parsePipedCommand( buff );
 
-        if( ! isBuiltinCmd( pc ) ){
+        if( ! isBuiltinCmd( &pc ) ){
+        	persistHistoryToDisk();
         	execEngine3(pc);
+        	loadHistoryFromDisk();
+        	//loadHistoryFromDisk();
         	//execEngine2(pc);
         	//execEngine( pc , 0, NULL );
         }
