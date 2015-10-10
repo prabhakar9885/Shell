@@ -147,11 +147,14 @@ int execEngine3(pipedCommand pc){
           	//printf("%s\n", pc.cmds[0]);
           	char **sCmd = parseCommandWithArgs(pc, i);
           	//printf("%s %s\n", sCmd[0], sCmd[1] );
-			execvp(sCmd[0], sCmd );
-          	exit(EXIT_FAILURE);
+			int status = execvp(sCmd[0], sCmd );
+			if( status == -1){
+				printf("%s: command not found\n", sCmd[0]);
+          		exit(1);
+			}
         }
       	else
-        {
+      	{
         	wait(NULL);
           	close(p[1]);
           	fd_in = p[0]; //save the input for the next command
@@ -297,7 +300,7 @@ int isBuiltinCmd( pipedCommand pCmd){
 		
 	}
 	else if( strcmp(temp, "history") == 0 ){
-		displayHist();
+		
 	}
 	else
 		return 0;
