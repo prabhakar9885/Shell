@@ -7,6 +7,10 @@
 #include "fcntl.h"
 #include "string.h"
 
+#ifndef HIST_FILE_NAME
+#define HIST_FILE_NAME ".MyHist"
+#endif
+
 using namespace std;
 
 int histLength=5;
@@ -38,8 +42,8 @@ void addToHist(char *cmd){
 		i++;
 	temp[i] = '\0';
 
-	if( strcmp(strtrim(temp), (char*)"history")==0 && 
-			strcmp(strtrim(temp), strtrim(histBuff.back().c_str()) ) == 0)
+	if( strcmp(strtrim(temp), (char*)"history")==0 && histBuff.size()>0 &&
+			strcmp(strtrim(temp), histBuff.back().c_str() ) == 0)
 		return;
 
 	string str(temp);
@@ -66,18 +70,30 @@ void displayHist(){
 
 void persistHistoryToDisk(){
 
-	ofstream out((char*)".MyHist");
+	int fd = creat( (char*)".MyHist", 00666 );
+
+	if (fd==-1)
+	{
+		printf("History file could not be saved.\n");
+	}
+	ftruncate(fd, 0);
 	
 	for ( list<string>::iterator i = histBuff.begin() ; i != histBuff.end() ; ++i ) {
-		out << *i << endl;
+		write(fd, (*i).c_str(), strlen( (*i).c_str() ) );
+		write(fd, "\n", 1);
 	}
-	out.close();
+	close(fd);
 
 }
 
 void loadHistoryFromDisk(){
 
+	histBuff.clear();
+
 	int fd = open( (char*)".MyHist", 00666 ), i = 0;
+	if (fd==-1) {
+		return;
+	}
 	char ch, str[1024];
 
 	while( read( fd, &ch, 1 ) > 0 ){
