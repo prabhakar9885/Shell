@@ -56,14 +56,15 @@ void addToHist(char *cmd){
 }
 
 
-void displayHist(){
+void displayHist(int countOfCommangs=0){
 
 	int count = 0;
 
 	int histBuffSize = histBuff.size();
 
 	for ( list<string>::iterator i = histBuff.begin() ; i != histBuff.end() ; ++i ) {
-		cout << ++count << "  " << *i << endl;
+		if( ++count > histLength-countOfCommangs )
+			printf("%6d  %s\n", count, (*i).c_str() );
 	}
 }
 

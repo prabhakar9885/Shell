@@ -305,6 +305,25 @@ int isBuiltinCmd( pipedCommand *pCmd_ptr){
 		
 	}
 	else if( strncmp(temp, "history", 7) == 0 ){
+
+		// Processes the command of the form "history 3"
+		char *bck = sCmd[1];
+		if( bck != NULL){
+			while( *bck>='0' && *bck<='9')
+				bck++;
+			
+			if( *bck!='\0' && *bck!='\n' ){
+				printf("%s : numeric argument required\n", temp);
+				return 1;
+			}
+			if( *bck=='\0' || *bck=='\n' ){
+				int countOfCommands = atoi(sCmd[1]);
+				displayHist(countOfCommands);
+				return 1;
+			}
+		}
+
+		// Processes the command of the form "history | grep a"
 		pCmd_ptr->cmds[0] = (char*)malloc(sizeof(char)*128);
 		bzero( pCmd_ptr->cmds[0], sizeof(char)*128 );
 		strcpy( pCmd_ptr->cmds[0], (char*)"cat -n ");
