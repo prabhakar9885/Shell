@@ -26,25 +26,6 @@ typedef struct {
 
 
 
-void my_handler(int si){
-	printf("Ctrl C is pressed\n");
-}
-
-void configSignaalHandler(){
-	struct sigaction sigIntHandler;
-
-   	sigIntHandler.sa_handler = my_handler;
-   	sigemptyset(&sigIntHandler.sa_mask);
-   	sigIntHandler.sa_flags = 0;
-
-   	sigaction(SIGINT, &sigIntHandler, NULL);
-
-   	pause();
-}
-
-
-
-
 /*
  * Returns the number of times the character "Key" is appearning in the string.
  */
@@ -142,7 +123,6 @@ int execEngine3(pipedCommand pc){
       	}
       	else if (pid == 0)
       	{
-    		//configSignaalHandler();
     		if( pc.cmdCount > 1 ){
         		dup2(fd_in, 0); //change the input according to the old one 
         	}
@@ -356,6 +336,22 @@ int isBuiltinCmd( pipedCommand *pCmd_ptr){
 }
 
 
+/*
+ *	If there is no child process running, then the handler displays the promt in a new line.
+ *	else, the handler does nothing.
+ */
+void sig_handler(int signalno){
+
+	pid_t result = waitpid(-1, NULL, WNOHANG);
+
+	// If the child-process has changed the stat( to dead) 
+	if( result != 0 ){
+		char buff[MAX_COMMAND_SIZE];
+		printf("\n%s: %s$ ", getlogin(), getcwd(buff, MAX_COMMAND_SIZE));
+		fflush(stdout);
+	}
+}
+
 
 int main(){
     
@@ -363,6 +359,10 @@ int main(){
     char* name = getlogin();
     
     saved_stdout = dup(1);
+
+
+  	if (signal(SIGINT, sig_handler) == SIG_ERR)
+  		printf("Failed to handel the SIGINT signal\n");
 
     loadHistoryFromDisk();
 
