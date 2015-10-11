@@ -7,6 +7,8 @@
 #include <stdlib.h>
 
 #include "history.h"
+#include "EnvVariables.h"
+
 
 #define MAX_COMMAND_SIZE 1024
 
@@ -279,6 +281,19 @@ int execEngine( pipedCommand pc , int commandIndex, int previousPipe[] ){
 }
 
 
+char* stripQuotes(char *str){
+
+	int len = strlen(str);
+	char *res = (char*) malloc( len );
+	strcpy(res, str);
+
+	if(strlen(str) >0 && (str[0]=='\"' || str[0]=='\'') )
+		res++;
+	if(strlen(str) >0 && (str[len-1]=='\"' || str[len-1]=='\'') )
+		res[strlen(res)-1] = '\0';
+
+	return res;
+}
 
 
 /*
@@ -301,8 +316,13 @@ int isBuiltinCmd( pipedCommand *pCmd_ptr){
 		persistHistoryToDisk();
 		exit(0);
 	}
+	else if( strncmp(temp, "export", 6) == 0 ){
+		exportVar(strtrim(pCmd.cmds[0]+6));
+		return 1;
+	}
 	else if( strncmp(temp, "echo", 4) == 0 ){
-		
+		printf("%s", processEchoCommand( stripQuotes( strtrim(pCmd.cmds[0]+4) ) ) );
+		return 1;
 	}
 	else if( strncmp(temp, "history", 7) == 0 ){
 
