@@ -42,8 +42,8 @@ void addToHist(char *cmd){
 		i++;
 	temp[i] = '\0';
 
-	if( strcmp(strtrim(temp), (char*)"history")==0 && histBuff.size()>0 &&
-			strcmp(strtrim(temp), histBuff.back().c_str() ) == 0)
+	// If the currnt command and the previous command are the same, don't insert into the history.
+	if( histBuff.size()>0 && strcmp(strtrim(temp), histBuff.back().c_str() ) == 0 )
 		return;
 
 	string str(temp);
