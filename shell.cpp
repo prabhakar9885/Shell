@@ -24,6 +24,11 @@ typedef struct {
 } pipedCommand;
 
 
+typedef struct {
+	char *left;
+	char *right;
+} redirectionPair;
+
 
 
 /*
@@ -104,6 +109,36 @@ char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
 }
 
 
+int hasInputRedirectiion( char *inp,  redirectionPair *rp){
+	
+	int len = strlen(inp);
+	rp->left = (char*)malloc( len );
+	rp->right = (char*)malloc( len );
+	char *temp = (char*)malloc( len );
+	strcpy(temp, inp);
+
+	int  i = 0;
+	while( i<len && temp[i] != '<' ){
+		rp->left[i] = temp[i];
+		i++;
+	}
+	rp->left[i] = '\0';
+
+	if( i == len )
+		return 0;
+
+	int base = ++i; // ++ -> to skip th "<" operator
+	while( i<len && temp[i]!='\n' ){
+		rp->right[i-base] = temp[i];
+		i++;
+	}
+	rp->right[i] = '\0';
+	rp->right = strtrim(rp->right);
+
+	return 1;
+}
+
+
 
 /*
  *	Runs the external commands.
@@ -129,10 +164,28 @@ int execEngine3(pipedCommand pc){
           	if( i< pc.cmdCount-1 )
           		dup2(p[1], 1);
           	close(p[0]);
-          	//printf("%s\n", pc.cmds[0]);
+
+          	//	If Input-Redirection exist, then Handle it.
+          	redirectionPair rp;
+      		if( hasInputRedirectiion(pc.cmds[i], &rp)  ){
+      			pid_t pidRedirect = fork();
+      			if(pidRedirect==0){
+      				close(p[0]);
+      				dup2(p[1], 1);
+      				char *temp[3];
+      				temp[0] = (char*)"cat";
+      				temp[1] = rp.right;
+      				temp[2] = NULL;
+      				execvp(temp[0], temp );
+      			}
+      			else{
+      				wait(NULL);
+      				pc.cmds[i] = rp.left;
+      			}
+      		}
+          	
           	char **sCmd = parseCommandWithArgs(pc, i);
-          	//printf("%s %s\n", sCmd[0], sCmd[1] );
-			int status = execvp(sCmd[0], sCmd );
+          	int status = execvp(sCmd[0], sCmd );
 			if( status == -1){
 				printf("%s: command not found\n", sCmd[0]);
           		exit(1);
