@@ -187,6 +187,7 @@ int isBuiltinCmd( pipedCommand *pCmd_ptr){
 	}
 	else if( strcmp(temp, "exit") == 0 ){
 		persistHistoryToDisk();
+		printf("Bye...\n");
 		exit(0);
 	}
 	else if( strncmp(temp, "export", 6) == 0 ){
@@ -277,7 +278,7 @@ int main(){
 
        	pipedCommand pc = parsePipedCommand( buff );
 
-        if( ! isBuiltinCmd( &pc ) ){
+        if( ! isBuiltinCmd( &pc ) ) {
         	persistHistoryToDisk();
         	execEngine3(pc);
         	loadHistoryFromDisk();
