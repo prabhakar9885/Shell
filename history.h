@@ -183,6 +183,7 @@ char* getBangCommandFromHist( char *bangCommand){
 		return targetCmdWithArg;
 	}
 	else if( bangCommand[1]<='9' && bangCommand[1]>='0' ){
+		// handles the commands of the form !10abc
 
 		// Overwrite the trailing \n with \0
 		bangCommand[ strlen(bangCommand)-1 ] = '\0';
@@ -208,6 +209,27 @@ char* getBangCommandFromHist( char *bangCommand){
 
 
 		return targetCmdWithArg;
+	}
+	else if( ( bangCommand[1]>='a' && bangCommand[1]<='z' ) ||  ( bangCommand[1]>='A' && bangCommand[1]<='Z' ) ){
+		// handles the commands of the form !-10abc
+
+		int len = strlen( bangCommand + 1 ); // +1, for excludint the '!'' at the begining of bangCommand
+		int i;
+		char prefix[len];
+		for ( i = 1; i < len; ++i) {
+				prefix[i-1] = bangCommand[i];
+		}
+		// Overwrite the trailing '\n' with '\0'
+		prefix[i-1] = '\0';
+
+		for( list<string>::reverse_iterator rItr = histBuff.rbegin(); rItr != histBuff.rend(); rItr++ )
+			if( strncmp((*rItr).c_str(), prefix, len-1 ) == 0 ){ 
+				const char *temp = (*rItr).c_str();
+				char *res = (char*)malloc( sizeof(temp));
+				strcpy(res, temp);
+				return res;
+			}
+
 	}
 
 	return (char*)"";
