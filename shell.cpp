@@ -148,120 +148,13 @@ int execEngine3(pipedCommand pc){
 }
 
 
-int execEngine2( pipedCommand pc){
-	int n = pc.cmdCount;
-	int saved_stdout = dup(1), saved_stdin = dup(0);
-	int fd[n][2];
-	
-	for(int i=0; i<n; i++){
-		
-		if( pipe(fd[i]) != 0){
-			perror("pipe");
-			return 1;
-		}
-		
-		pid_t pid = fork();
-		
-		if( pid < 0 ){
-			perror("fork");
-			return 2;
-		}
-		if( pid > 0){
-			/* Parent process */
-			wait(0);
-			printf("#%d", i);
-			close(fd[i-1][0]);
-		}
-		else{
-			 /* Child process */
-			
-			if( n>1 && i>0 && i<n ) {
-				// duplicate STDIN  
-				//close(fd[i-1][1]);
-				close(0);
-				dup2( fd[i-1][0], 0 );
-			}
-			if( n>1 && i<n-1 ){
-				// duplicate STDOUT
-				//close(fd[i][0]);
-				close(1);
-				dup2( fd[i][1], 1 );
-			}
-			else if(i==n-1){
-				// restore STDOUT
-				//dup2( saved_stdout, 1);
-			}
-			
-			char** sCmd = parseCommandWithArgs(pc, i);
-			if( execvp(sCmd[0], sCmd ) == -1){
-				perror("execvp");
-				return 3;
-			}
-		}
-	}
-	return 0;
-}
 
-
-int saved_stdout;
-int execEngine( pipedCommand pc , int commandIndex, int previousPipe[] ){
-
-	if( commandIndex == pc.cmdCount )
-		return 0;
-
-	int currentPipe[2];
-
-	if( pipe(currentPipe) != 0 ){
-		perror("pipe error");
-		return 1;
-	}
-
-	pid_t pid = fork();
-
-	if( pid < 0){
-		perror("fork error");
-		exit(1);
-	}
-
-	if( pid == 0 ){
-		printf("Child: %d: %s %d %d\n", commandIndex, pc.cmds[commandIndex], currentPipe[0], currentPipe[1] );
-
-		if( pc.cmdCount > 1 && commandIndex < pc.cmdCount-1){
-			/* duplicate the stdout for multi-pipe */
-			close(1);
-			close(currentPipe[0]);
-			dup2(currentPipe[1], 1);
-		}
-		if( commandIndex == pc.cmdCount-1){
-			close(1);
-			close(currentPipe[1]);
-			dup2(saved_stdout, 1);
-			printf("aaa\n");
-		}
-		if( pc.cmdCount > 1 && commandIndex > 0 && commandIndex < pc.cmdCount ){
-			/* duplicate the stdin for multi-pipe */
-			close(0);
-			close(previousPipe[1]);
-			dup2(previousPipe[0], 0);
-		}
-		
-		char** sCmd = parseCommandWithArgs(pc, commandIndex);
-		printf("Child II: %d: %s %s\n", commandIndex, sCmd[0], sCmd[1] );
-	    int stat = execvp(sCmd[0], sCmd );
-	}
-	else{
-		printf("Parent: %d: %s %d %d\n", commandIndex, pc.cmds[commandIndex], currentPipe[0], currentPipe[1] );
-		if(commandIndex < pc.cmdCount-1)
-			execEngine(pc, commandIndex + 1 , currentPipe);
-		if(commandIndex==0)
-			wait(0);
-		printf("Parent %d+\n", commandIndex );
-	}
-	return 0;
-}
-
-
-char* stripQuotes(char *str){
+/*
+ *	All the single-quotes and double-quotes that are enclosing the "str" 
+ *	are be removed and the resultant string will be returned.
+ *	The "str" remaines uneffected.
+ */
+char* stripQuotes(const char *str){
 
 	int len = strlen(str);
 	char *res = (char*) malloc( len );
@@ -357,10 +250,8 @@ int main(){
     
     char buff[MAX_COMMAND_SIZE];
     char* name = getlogin();
-    
-    saved_stdout = dup(1);
 
-
+	// Register the signal handler with the kernal.    
   	if (signal(SIGINT, sig_handler) == SIG_ERR)
   		printf("Failed to handel the SIGINT signal\n");
 
@@ -390,9 +281,6 @@ int main(){
         	persistHistoryToDisk();
         	execEngine3(pc);
         	loadHistoryFromDisk();
-        	//loadHistoryFromDisk();
-        	//execEngine2(pc);
-        	//execEngine( pc , 0, NULL );
         }
     }
 
