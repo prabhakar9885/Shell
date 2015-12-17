@@ -13,22 +13,40 @@
 
 using namespace std;
 
-int histLength=5;
+int histLength = 100;
 list<string> histBuff;
 
 
 char *strtrim( const char* text){
 
-	char *text2 = (char*) malloc( strlen(text) );
-	strcpy( text2, text);
+	char *out = (char*) malloc( strlen(text) );
+	const char *str=text;
+	size_t len=sizeof(text);
+	const char *end;
+	size_t out_size;
 
-	while(*text2 ==' ') text2++;
-	int len= strlen(text2);
-	while(text2[len-1]==' '){
-		text2[len-1]==0;
-		len--;
-	}
-	return text2;
+	if(len == 0)
+		return  (char*)"";
+
+  // Trim leading space
+  while(isspace(*str)) str++;
+
+  if(*str == '\0')  // All spaces?
+    return  (char*)"";
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace(*end)) end--;
+  end++;
+
+  // Set output size to minimum of trimmed string length and buffer size minus 1
+  out_size = (end - str) < len-1 ? (end - str) : len-1;
+
+  // Copy trimmed string and add null terminator
+  memcpy(out, str, out_size);
+  out[out_size] = '\0';
+
+  return out;
 }
 
 
