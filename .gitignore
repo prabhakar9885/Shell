@@ -1,0 +1,13 @@
+*.pdf
+/tttt
+/MyHist
+/SharedDS.h
+/parser.cpp
+/parser.h
+/shell (copy).cpp
+/shell_stl.cpp
+*.h.gch
+/.MyHist
+/ExecEngine.h
+/a.out
+/abc
