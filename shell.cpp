@@ -108,8 +108,10 @@ char** parseCommandWithArgs( pipedCommand cmd , int commandIndex ) {
     return singleCmd;
 }
 
+int _getRedirectionPair( char *inp,  redirectionPair *rp, char delimitter){
 
-int hasInputRedirectiion( char *inp,  redirectionPair *rp){
+    bzero( rp, sizeof(redirectionPair) );
+    //printf("@@@ 1 %s\n", inp);
 	
 	int len = strlen(inp);
 	rp->left = (char*)malloc( len );
@@ -118,11 +120,13 @@ int hasInputRedirectiion( char *inp,  redirectionPair *rp){
 	strcpy(temp, inp);
 
 	int  i = 0;
-	while( i<len && temp[i] != '<' ){
+	while( i<len && temp[i] != delimitter ) {
 		rp->left[i] = temp[i];
 		i++;
 	}
 	rp->left[i] = '\0';
+    rp->left = strtrim(rp->left);
+    //printf("@@@ 2 Left: %s Right: %s\n", rp->left, rp->right);
 
 	if( i == len )
 		return 0;
@@ -134,8 +138,50 @@ int hasInputRedirectiion( char *inp,  redirectionPair *rp){
 	}
 	rp->right[i] = '\0';
 	rp->right = strtrim(rp->right);
+    //printf("@@@ 3 Left: %s Right: %s\n", rp->left, rp->right);
 
 	return 1;
+}
+
+int hasInputRedirectiion( char *inp,  redirectionPair *rp){
+
+    int ret = _getRedirectionPair(inp, rp, '<');
+    int rightLen = strlen(rp->right);
+
+    for (int i = 0; i < rightLen; ++i) {
+        if( rp->right[i] == '>' ){
+            rp->right[i] = '\0';
+            break;
+        }
+    }
+    rp->left = strtrim(rp->left);
+    rp->right = strtrim(rp->right);
+
+    //printf("----------------------------------------------------\n");
+    //printf("Left: -%s- Right: -%s-\n", rp->left, strtrim(rp->right) );
+
+    return ret;
+}
+
+int hasOutputRedirectiion( char *inp,  redirectionPair *rp){
+	
+    //printf("Output redirection\n");
+	
+    int ret = _getRedirectionPair(inp, rp, '>');
+    int leftLen = strlen(rp->left);
+
+    for (int i = 0; i < leftLen; ++i) {
+        if( rp->left[i] == '<' ){
+            rp->left[i] = '\0';
+            break;
+        }
+    }
+    rp->left = strtrim(rp->left);
+    rp->right = strtrim(rp->right);
+
+    //printf("Left: -%s- Right: -%s-\n", rp->left, rp->right);
+
+    return ret;
 }
 
 
@@ -152,40 +198,52 @@ int execEngine3(pipedCommand pc){
   	for(int i=0; i<pc.cmdCount; i++)
   	{
   		pipe(p);
+        //printf("# %d\n", getpid() );
       	if ((pid = fork()) == -1)
       	{
         	exit(EXIT_FAILURE);
       	}
       	else if (pid == 0)
       	{
+            //printf("## %d\n", getpid() );
+            // If we have more than 1 command in pipe, dup the STDIN to the previous STDIN i.e., fd_in
     		if( pc.cmdCount > 1 ){
-        		dup2(fd_in, 0); //change the input according to the old one 
+        		dup2(fd_in, 0); 
         	}
+
+            // If the current comman is not the last command in the pipe, dup the STDOUT to the write-end of the pipe
           	if( i< pc.cmdCount-1 )
           		dup2(p[1], 1);
           	close(p[0]);
 
           	//	If Input-Redirection exist, then Handle it.
           	redirectionPair rp;
-      		if( hasInputRedirectiion(pc.cmds[i], &rp)  ){
-      			pid_t pidRedirect = fork();
-      			if(pidRedirect==0){
-      				close(p[0]);
-      				dup2(p[1], 1);
-      				char *temp[3];
-      				temp[0] = (char*)"cat";
-      				temp[1] = rp.right;
-      				temp[2] = NULL;
-      				execvp(temp[0], temp );
-      			}
-      			else{
-      				wait(NULL);
-      				pc.cmds[i] = rp.left;
-      			}
+            //printf("###-1 %d\n", getpid() );
+            int inpRedirectPid = -1;
+
+
+            int fd_file = -1;
+            char *currentCmd = (char*)malloc( strlen(pc.cmds[i]) );
+            strcpy(currentCmd, pc.cmds[i]);
+
+      		if( hasInputRedirectiion(currentCmd, &rp)  ){ 
+                fd_file = open( rp.right, 0666 );
+                //printf("###-2 %d %d\n", getpid() , fd_file);
+                dup2(fd_file, 0);
+                pc.cmds[i] = rp.left;
       		}
+            if( hasOutputRedirectiion(currentCmd, &rp)  ){      
+                int fd_file_ = open( rp.right, O_CREAT | O_WRONLY | O_TRUNC, 0644 );
+                //printf("###-3 %d %d\n", getpid(), fd_file_ );
+                dup2(fd_file_, 1);
+                pc.cmds[i] = rp.left;
+            }
           	
           	char **sCmd = parseCommandWithArgs(pc, i);
-          	int status = execvp(sCmd[0], sCmd );
+            
+            //printf("Exec %d %d :%s: %s-%s\n", getpid(), inpRedirectPid, pc.cmds[i], sCmd[0], sCmd[1]);
+          	
+            int status = execvp(sCmd[0], sCmd );
 			if( status == -1){
 				printf("%s: command not found\n", sCmd[0]);
           		exit(1);
@@ -195,6 +253,7 @@ int execEngine3(pipedCommand pc){
       	{
         	wait(NULL);
           	close(p[1]);
+            //printf("##P %d\n", getpid() );
           	fd_in = p[0]; //save the input for the next command
         }
     }
